@@ -1,0 +1,118 @@
+createUserJob:
+  useHelmHooks: false
+migrateDatabaseJob:
+  useHelmHooks: false
+
+serviceAccount:
+  name: airflow
+
+ingress:
+  enabled: true
+  web:
+    annotations:
+      nginx.ingress.kubernetes.io/force-ssl-redirect: 'true'
+  spec:
+    periodSeconds: 240    # polling interval every 5 minutes
+    timeoutSeconds: 60  
+    rules:
+      - http:
+          paths:
+          - backend:
+              service:
+                name: airflow-webserver
+                port:
+                  name: airflow-ui
+              path: /
+              pathType: ImplementationSpecific
+
+airflow:
+  image:
+    repository: apache/airflow
+    pullPolicy: IfNotPresent
+  config:
+    AIRFLOW__CORE__DAGS_FOLDER: /usr/local/airflow/dags/src
+    AIRFLOW__CORE__COLORED_CONSOLE_LOG: 'False'
+    AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'False'
+    AIRFLOW__WEBSERVER__AUTHENTICATE: 'True'
+    AIRFLOW__WEBSERVER__HIDE_PAUSED_DAGS_BY_DEFAULT: 'True'
+    AIRFLOW__WEBSERVER__AUTH_BACKEND: airflow.contrib.auth.backends.google_auth
+    AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX: 'True'
+    AIRFLOW__GOOGLE__OAUTH_CALLBACK_ROUTE: /oauth2callback
+    AIRFLOW__GOOGLE__DOMAIN: testing
+    AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: 'False'
+  redis:
+    repository: redis
+    tag: 7-bullseye
+    pullPolicy: IfNotPresent
+  service:
+    type: LoadBalancer
+    ports:
+      http: 8080
+    nodePorts:
+      http: ""
+    sessionAffinity: None
+    sessionAffinityConfig: {}
+    clusterIP: ""
+    loadBalancerIP: ""
+    loadBalancerSourceRanges: []
+    externalTrafficPolicy: Cluster
+
+
+scheduler:
+  resources:
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+    requests:
+      cpu: "50m"
+      memory: "128Mi"
+  securityContext:
+    fsGroup: 65534
+
+web:
+  initialDelaySeconds: '240'
+  resources:
+    limits:
+      cpu: "800m"
+      memory: "2Gi"
+    requests:
+      cpu: "50m"
+      memory: "512Mi"
+  securityContext:
+    fsGroup: 65534
+
+
+
+
+worker:
+  image:
+    registry: docker.io
+    repository: bitnami/airflow-worker
+    tag: 2.5.1-debian-11-r14
+    digest: ""
+    pullPolicy: IfNotPresent
+  containerPorts:
+    http: 8793
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 180
+    periodSeconds: 20
+    timeoutSeconds: 5
+    failureThreshold: 6
+    successThreshold: 1
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+    successThreshold: 1
+  resources:
+    limits:
+      cpu: "2000m"
+      memory: "4Gi"
+    requests:
+      cpu: "1000m"
+      memory: "1Gi"
+  securityContext:
+    fsGroup: 65534
