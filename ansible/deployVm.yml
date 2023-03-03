@@ -1,0 +1,57 @@
+- name: Create Compute Engine instances
+  hosts: localhost
+  gather_facts: no
+  vars:
+      gcp_project: "PROJECT_NAME"
+      gcp_cred_kind: serviceaccount
+      gcp_cred_file: "PATH TO SERVICE ACCOUNT JSON"
+      zone: "europe-west1-b"
+      region: "europe-west1"
+      machine_type: "c2-standard-8"
+      image: "projects/centos-cloud/global/images/centos-7-v20230203"
+      machine_name: "centos7-200gb-vm"
+
+  tasks:
+  - name: Create private IP address to the VM instance
+    gcp_compute_address:
+      name: "{{ zone }}-ip"
+      region: "{{ region }}"
+      project: "{{ gcp_project }}"
+      service_account_file: "{{ gcp_cred_file }}"
+      auth_kind: "{{ gcp_cred_kind }}"
+    register: gce_ip
+
+  - name: Bring up the instance in the zone
+    gcp_compute_instance:
+      name: "{{ machine_name }}"
+      machine_type: "{{ machine_type }}"
+      disks:
+        - auto_delete: true
+          boot: true
+          initialize_params:
+            disk_type: pd-ssd
+            disk_size_gb: 200
+            source_image: "projects/centos-cloud/global/images/centos-7-v20230203"
+      network_interfaces:
+        - access_configs:
+            - name: External NAT  
+              nat_ip: "{{ gce_ip }}"
+              type: ONE_TO_ONE_NAT
+      zone: "{{ zone }}"
+      project: "{{ gcp_project }}"
+      service_account_file: "{{ gcp_cred_file }}"
+      auth_kind: "{{ gcp_cred_kind }}"
+      #  startup-script-url: gs:://graphite-playground/bootstrap.sh
+    register: gce 
+
+  post_tasks:
+    - name: Wait for SSH for instance
+      wait_for: delay=5 sleep=5 host={{ gce_ip.address }} port=22 state=started timeout=100
+  
+    - name: Save host data for first zone 
+      add_host: hostname={{ gce_ip.address }} groupname=gce_instances_ips
+
+    - name: Print out the basic info
+      debug:
+        msg: "The deployment has completed with success. VM {{ machine_name }} has been deployed.IP address: {{ gce_ip.address }}."
+  
