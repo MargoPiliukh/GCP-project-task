@@ -1,6 +1,6 @@
-#Create GCP bucket
+# Create GCP bucket
 
-##Requirements:
+## Requirements:
 - GCP project
 - GCP service account - json file for authentication
 - terraform
