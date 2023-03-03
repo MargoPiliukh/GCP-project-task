@@ -8,5 +8,5 @@ This code uses Terraform Helm provider to install the Apache AIrflow services wi
 - GCP service account - json file for authentication
 - terraform
 - gcloud with gke-gcloud-auth-plugin
-- kubectl
+- kubectl with proper kubeconfig
 - helm
